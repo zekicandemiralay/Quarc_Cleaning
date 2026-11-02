@@ -1,0 +1,1744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quarc Cleaning</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0e1117;
+      min-height: 100vh;
+      color: #e2e8f0;
+      padding: 20px 14px 60px;
+    }
+
+    h1 { font-size: 1.5rem; color: #e2e8f0; margin-bottom: 8px; letter-spacing: 0.5px; text-align: center; }
+    #subtitle { font-size: 0.85rem; color: #8b9cb8; margin-bottom: 22px; text-align: center; }
+
+    /* ── Error/toast banner ── */
+    #toast {
+      position: fixed; left: 50%; transform: translateX(-50%);
+      bottom: 24px; padding: 12px 18px; border-radius: 10px;
+      background: #11998e; color: white; font-size: 0.9rem;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+      opacity: 0; pointer-events: none; transition: opacity 0.25s;
+      max-width: 90vw; z-index: 100;
+    }
+    #toast.show { opacity: 1; }
+    #toast.error { background: #c0392b; }
+
+    /* ── Home grid ── */
+    #home { display: none; gap: 16px; flex-wrap: wrap; justify-content: center; max-width: 720px; margin: 0 auto; }
+    .home-btn {
+      flex: 1 1 180px; max-width: 220px; aspect-ratio: 1;
+      border: none; border-radius: 20px; font-size: 1rem; font-weight: 700;
+      color: white; cursor: pointer; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 10px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.35); transition: transform 0.15s;
+    }
+    .home-btn:active { transform: scale(0.97); }
+    .home-btn .icon { font-size: 2.4rem; }
+    #btn-record   { background: linear-gradient(135deg, #11998e, #38ef7d); color: #06231a; }
+    #btn-logs     { background: linear-gradient(135deg, #3a7bd5, #2563c0); }
+    #btn-settings { background: linear-gradient(135deg, #667eea, #764ba2); }
+
+    /* ── Panels ── */
+    .panel {
+      display: none; max-width: 980px; margin: 0 auto;
+      background: #161b27; border: 1px solid #2a3347; border-radius: 18px;
+      padding: 22px 18px; box-shadow: 0 4px 24px rgba(0,0,0,0.45);
+    }
+    .panel.show { display: block; }
+    .panel-header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+    .back-btn {
+      background: #1e2433; border: 1px solid #2a3347; border-radius: 10px;
+      padding: 8px 14px; cursor: pointer; font-size: 0.9rem; color: #8b9cb8;
+    }
+    .back-btn:hover { background: #252d40; color: #e2e8f0; }
+    .panel-title { font-size: 1.2rem; font-weight: 700; color: #e2e8f0; }
+
+    /* ── Section blocks ── */
+    .block {
+      background: #1e2433; border: 1px solid #2a3347; border-radius: 14px;
+      padding: 16px; margin-bottom: 16px;
+    }
+    .block h3 { font-size: 1rem; color: #8b9cb8; margin-bottom: 12px; }
+
+    /* ── Home intro ── */
+    #home-intro {
+      display: none;
+      max-width: 720px; margin: 0 auto 20px; background: #161b27;
+      border: 1px solid #2a3347; border-left: 3px solid #38ef7d;
+      border-radius: 14px; padding: 14px 16px;
+    }
+    #home-intro h3 { font-size: 0.95rem; color: #e2e8f0; margin-bottom: 8px; }
+    #home-intro ul { margin: 0; padding-left: 20px; }
+    #home-intro li { font-size: 0.85rem; color: #8b9cb8; line-height: 1.5; margin-bottom: 4px; }
+    #home-intro li:last-child { margin-bottom: 0; }
+    #home-intro b { color: #e2e8f0; }
+
+    /* ── Pills (person picker, parent sections) ── */
+    .pill-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill {
+      background: #161b27; border: 1.5px solid #2a3347; border-radius: 999px;
+      color: #e2e8f0; font-size: 0.92rem; font-weight: 600;
+      padding: 8px 16px; cursor: pointer; transition: all 0.15s;
+      user-select: none;
+    }
+    .pill:hover { border-color: #3a7bd5; }
+    .pill.selected { background: #3a7bd5; border-color: #3a7bd5; color: white; }
+    .pill.parent-green { background: #11998e; border-color: #11998e; color: #06231a; }
+    .pill.parent-blank { background: #161b27; }
+
+    /* ── Sections list (parent → children) ── */
+    .section-row {
+      display: flex; align-items: center; flex-wrap: wrap;
+      gap: 8px; margin-bottom: 10px;
+    }
+    .section-row .parent-pill { min-width: 130px; text-align: center; }
+    .child-group { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+    .child-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #161b27; border: 1.5px solid #2a3347; border-radius: 10px;
+      padding: 6px 10px; cursor: pointer; font-size: 0.85rem; color: #e2e8f0;
+      transition: all 0.15s;
+    }
+    .child-pill input[type=checkbox] { accent-color: #3a7bd5; cursor: pointer; }
+    .child-pill:hover { border-color: #3a7bd5; }
+    /* Light colour coding so type is obvious at a glance — see legend below. */
+    .child-pill.primary   { background: #18283d; border-color: #2c4a6c; }
+    .child-pill.secondary { background: #2d2818; border-color: #5a4a1c; }
+    .child-pill.primary.checked   { background: #1e3550; border-color: #3a7bd5; }
+    .child-pill.secondary.checked { background: #3d3414; border-color: #f7971e; }
+
+    /* Type legend on Enter Cleaning */
+    .type-legend {
+      display: inline-flex; gap: 14px; margin-bottom: 10px;
+      font-size: 0.78rem; color: #8b9cb8;
+    }
+    .type-legend .swatch {
+      display: inline-block; width: 12px; height: 12px; border-radius: 3px;
+      margin-right: 5px; vertical-align: middle;
+      border: 1px solid #2a3347;
+    }
+    .type-legend .swatch.primary   { background: #18283d; border-color: #2c4a6c; }
+    .type-legend .swatch.secondary { background: #2d2818; border-color: #5a4a1c; }
+
+    /* ── Buttons ── */
+    .btn {
+      padding: 10px 18px; border: none; border-radius: 10px; cursor: pointer;
+      font-size: 0.95rem; font-weight: 600; transition: opacity 0.15s;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary  { background: linear-gradient(135deg, #11998e, #38ef7d); color: #06231a; }
+    .btn-warn     { background: linear-gradient(135deg, #f7971e, #ff8a00); color: #2a1900; }
+    .btn-blue     { background: linear-gradient(135deg, #3a7bd5, #2563c0); color: white; }
+    .btn-purple   { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+    .btn-danger   { background: #c0392b; color: white; }
+    .btn-ghost    { background: #1e2433; border: 1px solid #2a3347; color: #8b9cb8; }
+    .btn-ghost:hover { background: #252d40; color: #e2e8f0; }
+    /* Used for the Edit buttons that change look based on selection: blue when
+       enabled, grey/locked when disabled. */
+    .btn-edit-toggle {
+      background: linear-gradient(135deg, #3a7bd5, #2563c0); color: white;
+      border: none;
+    }
+    .btn-edit-toggle:disabled {
+      background: #1e2433; color: #8b9cb8; border: 1px solid #2a3347;
+      opacity: 1;  /* override the generic :disabled opacity:0.5 */
+      cursor: not-allowed;
+    }
+
+    .actions-bar { display: flex; gap: 10px; justify-content: center; margin-top: 14px; flex-wrap: wrap; }
+    .btn-record { padding: 16px 28px; font-size: 1.05rem; min-width: 200px; }
+    .btn-absent { padding: 12px 22px; font-size: 0.92rem; }
+
+    /* ── Record-panel week selector ── */
+    .week-select-row {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .week-select-row select { flex: 1; min-width: 200px; }
+    .week-past-note {
+      background: #2d2818; border: 1px solid #5a4a1c; color: #e8c97a;
+      border-radius: 8px; padding: 8px 12px; font-size: 0.82rem; margin-top: 10px;
+    }
+
+    /* ── Tables ── */
+    .data-table {
+      width: 100%; border-collapse: collapse; font-size: 0.88rem;
+    }
+    .data-table th, .data-table td {
+      padding: 8px 10px; border-bottom: 1px solid #2a3347; text-align: left;
+    }
+    .data-table th { color: #8b9cb8; font-weight: 600; font-size: 0.82rem; }
+    .data-table tr.clickable { cursor: pointer; }
+    .data-table tr.clickable:hover { background: #1a2030; }
+    /* Selected row — strong highlight + left accent stripe so it's always
+       obvious which row is being edited.  Placed AFTER the :hover rule so
+       selection wins over hover. */
+    .data-table tr.selected td {
+      background: #1e3550 !important;
+      color: #e2e8f0;
+      box-shadow: inset 3px 0 0 #3a7bd5;
+    }
+    .data-table tr.selected td:first-child { font-weight: 700; }
+    .row-actions { display: flex; gap: 6px; }
+    .row-actions .btn { padding: 5px 10px; font-size: 0.8rem; }
+
+    /* ── Quick info: time table ── */
+    .quick-info { margin-top: 28px; max-width: 980px; margin-left: auto; margin-right: auto; }
+    .quick-block {
+      background: #161b27; border: 1px solid #2a3347; border-radius: 16px;
+      padding: 18px 16px; margin-bottom: 18px;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.3);
+    }
+    .quick-block h2 { font-size: 1.05rem; color: #e2e8f0; margin-bottom: 14px; }
+    .timetable-wrap { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+    .timetable-scroll {
+      overflow-x: auto; flex: 1; min-width: 320px;
+      border: 1px solid #2a3347; border-radius: 10px;
+    }
+    .timetable {
+      border-collapse: collapse; font-size: 0.72rem;
+    }
+    .timetable th, .timetable td {
+      border: 1px solid #2a3347; padding: 4px 5px; text-align: center;
+      min-width: 36px; white-space: nowrap;
+    }
+    .timetable th { background: #1e2433; color: #8b9cb8; font-weight: 600; }
+    .timetable th.person-name { text-align: left; min-width: 110px; position: sticky; left: 0; background: #1e2433; z-index: 2; }
+    .timetable td.person-name { text-align: left; font-weight: 600; color: #e2e8f0; position: sticky; left: 0; background: #161b27; z-index: 1; }
+    .timetable td.cell { width: 36px; height: 30px; }
+    .cell.green  { background: #11998e; }
+    .cell.red    { background: #c0392b; }
+    .cell.orange { background: #f7971e; }
+    .cell.blank  { background: #161b27; }
+    .timetable-legend {
+      flex: 0 0 230px;
+      background: #1e2433; border: 1px solid #2a3347; border-radius: 10px;
+      padding: 12px 14px; font-size: 0.85rem; color: #e2e8f0;
+    }
+    .legend-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .legend-swatch {
+      display: inline-block; width: 16px; height: 16px; border-radius: 4px;
+      border: 1px solid #2a3347;
+    }
+    .legend-summary { color: #8b9cb8; font-size: 0.8rem; margin-top: 8px; padding-top: 8px; border-top: 1px solid #2a3347; }
+    .person-stats { margin-top: 10px; padding-top: 10px; border-top: 1px solid #2a3347; }
+    .person-stats h4 { font-size: 0.78rem; color: #8b9cb8; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .person-stat-row {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.82rem; padding: 3px 0;
+    }
+    .person-stat-row .who { color: #e2e8f0; font-weight: 600; }
+    .person-stat-row .pct { color: #38ef7d; font-weight: 700; }
+    .person-stat-detail { font-size: 0.72rem; color: #6b7280; }
+
+    /* ── Section counts table ── */
+    .sc-wrap { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+    .sc-scroll {
+      overflow-x: auto; flex: 1; min-width: 320px;
+      border: 1px solid #2a3347; border-radius: 10px;
+    }
+    .sc-table {
+      border-collapse: collapse; font-size: 0.78rem;
+    }
+    .sc-table th, .sc-table td {
+      border: 1px solid #2a3347; text-align: center;
+      width: 36px; height: 36px;            /* square cells */
+      padding: 0; vertical-align: middle;
+    }
+    .sc-table th.person-name,
+    .sc-table td.person-name {
+      text-align: left; padding: 0 10px;
+      min-width: 110px; width: auto; height: 36px;
+      position: sticky; left: 0; background: #1e2433; z-index: 2;
+      font-weight: 700; color: #e2e8f0;
+    }
+    .sc-table thead th { background: #1e2433; color: #8b9cb8; height: 120px; }
+    .sc-table thead th .sc-label {
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);   /* read bottom→top */
+      display: inline-block;
+      padding: 6px 0;
+      font-weight: 600;
+      max-height: 110px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sc-table td.cell-zero { color: #4b5563; }
+    .sc-table td.cell-pos  { color: #e2e8f0; font-weight: 700; }
+    /* Wall between Primary and Secondary groups — thicker right border on the
+       last column of the Primary group, no big gap. */
+    .sc-table th.sc-wall,
+    .sc-table td.sc-wall { border-right: 3px solid #6b7280; }
+
+    .sc-legend hr { border: none; border-top: 1px solid #2a3347; margin: 10px 0; }
+    .sc-legend {
+      flex: 0 0 200px;
+      background: #1e2433; border: 1px solid #2a3347; border-radius: 10px;
+      padding: 12px 14px; font-size: 0.85rem; color: #e2e8f0;
+    }
+    .sc-legend h4 { font-size: 0.78rem; color: #8b9cb8; margin-bottom: 8px;
+                    text-transform: uppercase; letter-spacing: 0.5px; }
+    .sc-legend .sec-row {
+      display: flex; justify-content: space-between; padding: 4px 0;
+      border-bottom: 1px dashed #2a3347;
+    }
+    .sc-legend .sec-row:last-child { border-bottom: none; }
+    .sc-legend .sec-name { color: #e2e8f0; }
+    .sc-legend .sec-count { color: #f7971e; font-weight: 700; }
+
+    /* Shared year selector — drives both the time table and section counts.
+       Lives in its own bar above the Section Cleanness panel. */
+    .year-picker {
+      display: inline-flex; align-items: center; gap: 6px;
+      vertical-align: middle;
+    }
+    .year-picker button {
+      background: #1e2433; border: 1px solid #2a3347; color: #8b9cb8;
+      width: 28px; height: 28px; border-radius: 6px; cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .year-picker button:hover { background: #252d40; color: #e2e8f0; }
+    .year-picker button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .year-picker .year-label { font-weight: 700; color: #e2e8f0; min-width: 48px; text-align: center; font-size: 1.05rem; }
+
+    .year-bar {
+      max-width: 980px; margin: 18px auto 0;
+      display: flex; align-items: center; gap: 12px; justify-content: center;
+      padding: 12px 16px;
+      background: #161b27; border: 1px solid #2a3347; border-radius: 12px;
+    }
+    .year-bar .year-label-text { color: #8b9cb8; font-size: 0.85rem; }
+
+    /* ── Quick info: cleanness ──
+       Layout = one column per parent section, parent card on top, then primary
+       children, then secondary children. Columns sit side by side and wrap on
+       narrow screens. */
+    .cleanness-columns {
+      display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start;
+    }
+    /* Each parent + its children sits inside its own bordered frame, so the
+       grouping is obvious without needing to colour the parent card. */
+    .cleanness-col {
+      display: flex; flex-direction: column; gap: 8px;
+      flex: 0 1 210px; min-width: 190px;
+      border: 1.5px solid #2a3347; border-radius: 14px;
+      padding: 10px;
+      background: #131826;
+    }
+    .clean-card {
+      background: #1e2433; border: 1.5px solid #2a3347; border-radius: 10px;
+      padding: 10px 12px; font-size: 0.85rem;
+    }
+    /* Parent card stays "big" — primary info presentation */
+    .clean-card.parent { background: #1a2030; border-color: #2a3347; }
+    /* Children get tighter padding + smaller text so parents visually dominate */
+    .clean-card.child {
+      padding: 6px 9px;
+      font-size: 0.78rem;
+    }
+    .clean-card.child .clean-name { font-size: 0.85rem; margin-bottom: 2px; }
+    .clean-card.child .clean-meta { font-size: 0.7rem; line-height: 1.3; }
+    .clean-card.child .clean-days { font-size: 0.78rem; margin-top: 2px; }
+    .clean-card.primary {
+      border-left: 3px solid #3a7bd5;
+    }
+    .clean-card.secondary {
+      border-style: dashed;
+      border-left: 3px dashed #8b9cb8;
+    }
+    /* Overdue parents = loud full-red */
+    .clean-card.parent.overdue { background: #2a1215; border-color: #c0392b; }
+    /* Overdue children = subtle: just a red frame + orange ⚠ — no full-red bg */
+    .clean-card.child.overdue {
+      background: #1e2433;
+      border-color: #c0392b;
+    }
+    .clean-card .clean-name { font-weight: 700; color: #e2e8f0; margin-bottom: 4px; }
+    .clean-card .clean-meta { color: #8b9cb8; font-size: 0.74rem; line-height: 1.35; }
+    .clean-card .clean-days { font-size: 0.85rem; font-weight: 600; margin-top: 4px; color: #e2e8f0; }
+    .clean-card.parent.overdue .clean-days { color: #ff6b6b; }
+    .clean-card .alert { color: #ff6b6b; font-weight: 700; margin-right: 4px; }
+    .clean-card.child .alert { color: #f7971e; }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      z-index: 50; align-items: center; justify-content: center; padding: 16px;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: #161b27; border: 1px solid #2a3347; border-radius: 16px;
+      padding: 22px 20px; max-width: 460px; width: 100%;
+    }
+    .modal h3 { font-size: 1.1rem; color: #e2e8f0; margin-bottom: 16px; }
+    .modal-field { margin-bottom: 14px; }
+    .modal-field label {
+      display: block; font-size: 0.82rem; color: #8b9cb8; margin-bottom: 6px;
+    }
+    .modal-field input, .modal-field select {
+      width: 100%; padding: 10px 12px; border: 1.5px solid #2a3347;
+      background: #1e2433; color: #e2e8f0; border-radius: 8px; font-size: 0.95rem;
+      outline: none;
+    }
+    .modal-field input:focus, .modal-field select:focus { border-color: #3a7bd5; }
+    .modal-field input:disabled, .modal-field select:disabled { opacity: 0.5; cursor: not-allowed; }
+    .modal-radio-row { display: flex; gap: 14px; }
+    .modal-radio-row label {
+      display: flex; align-items: center; gap: 6px; color: #e2e8f0; font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .modal-radio-row input[type=radio] { accent-color: #3a7bd5; }
+    .modal-radio-row input[type=radio]:disabled {
+      /* Keep the dot visible under the lock — just dim it. */
+      opacity: 0.55;
+    }
+    .modal-radio-row input[type=radio]:disabled + span { color: #8b9cb8; }
+    .modal-buttons { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+
+    /* ── Misc ── */
+    .empty { text-align: center; color: #6b7280; padding: 24px 0; }
+    .small-note { color: #6b7280; font-size: 0.78rem; margin-top: 4px; }
+    .form-error { color: #ff6b6b; font-size: 0.85rem; margin-top: 6px; min-height: 1.1em; }
+
+    @media (max-width: 600px) {
+      .home-btn { flex: 1 1 140px; }
+      .timetable-legend { flex: 1 1 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<h1>🧹 Quarc Cleaning</h1>
+<div id="subtitle">Household chore tracker</div>
+
+<!-- Home -->
+<div id="home">
+  <button class="home-btn" id="btn-record" onclick="openPanel('record')">
+    <span class="icon">✅</span> Enter Cleaning
+  </button>
+  <button class="home-btn" id="btn-logs" onclick="openPanel('logs')">
+    <span class="icon">📜</span> Logs
+  </button>
+  <button class="home-btn" id="btn-settings" onclick="openPanel('settings')">
+    <span class="icon">⚙️</span> Settings
+  </button>
+</div>
+
+<!-- Home intro (only shown on home) -->
+<div id="home-intro">
+  <h3>ℹ️ How this works</h3>
+  <ul>
+    <li><b>Enter your cleaning:</b> tap <b>✅ Enter Cleaning</b>, pick your name and the section(s) you cleaned, then submit. Away that week? Use <b>🚪 Absent</b> instead.</li>
+    <li><b>Turn your week green:</b> the Time Table cell for a week goes green once you've fully cleaned a whole primary section — either the parent room itself, or every one of its primary sub-sections, within that same week.</li>
+  </ul>
+</div>
+
+<!-- Quick info (only shown on home) — order: Time Table → Cleanness → Counts -->
+<div id="quick-info" class="quick-info">
+  <div class="quick-block">
+    <h2 id="timetable-title">📅 Persons Time Table</h2>
+    <div id="timetable-area">Loading…</div>
+  </div>
+  <div class="quick-block">
+    <h2>🧼 Section Cleanness</h2>
+    <div id="cleanness-area">Loading…</div>
+  </div>
+  <div class="quick-block">
+    <h2 id="sc-title">📊 Section Counts</h2>
+    <div id="section-counts-area">Loading…</div>
+  </div>
+</div>
+
+<div id="year-bar" class="year-bar">
+  <span class="year-label-text">Showing year</span>
+  <span class="year-picker" id="year-picker"></span>
+</div>
+
+<!-- Panel: Enter Record -->
+<div id="panel-record" class="panel">
+  <div class="panel-header">
+    <button class="back-btn" onclick="goHome()">&#8592; Back</button>
+    <span class="panel-title">Enter Cleaning</span>
+  </div>
+  <div class="block">
+    <h3>Week</h3>
+    <div class="week-select-row">
+      <select id="record-week-select" onchange="onRecordWeekChange()"></select>
+    </div>
+    <div class="week-past-note" id="week-past-note" hidden>
+      ⚠️ Recording for a past week — this entry will be dated into that week, not today.
+    </div>
+  </div>
+  <div class="block">
+    <h3>Person</h3>
+    <div id="record-persons" class="pill-row"></div>
+  </div>
+  <div class="block">
+    <h3>Sections</h3>
+    <div id="record-sections"></div>
+  </div>
+  <div class="form-error" id="record-error"></div>
+  <div class="actions-bar">
+    <button class="btn btn-primary btn-record" onclick="submitRecord('Cleaning')">✅ Enter Record</button>
+    <button class="btn btn-warn btn-absent" onclick="submitRecord('Absent')">🚪 Absent</button>
+  </div>
+</div>
+
+<!-- Panel: Logs -->
+<div id="panel-logs" class="panel">
+  <div class="panel-header">
+    <button class="back-btn" onclick="goHome()">&#8592; Back</button>
+    <span class="panel-title">Logs</span>
+  </div>
+  <div id="logs-area"></div>
+</div>
+
+<!-- Panel: Settings -->
+<div id="panel-settings" class="panel">
+  <div class="panel-header">
+    <button class="back-btn" onclick="goHome()">&#8592; Back</button>
+    <span class="panel-title">Settings</span>
+  </div>
+
+  <div class="block">
+    <h3>👥 Persons</h3>
+    <div id="persons-table-area"></div>
+    <div class="actions-bar" style="justify-content: flex-start; margin-top: 12px">
+      <button class="btn btn-blue" onclick="openPersonModal(null)">+ Add Person</button>
+      <button class="btn btn-edit-toggle" id="edit-person-btn" onclick="openPersonModal(selectedPersonId)" disabled>✎ Edit</button>
+      <button class="btn btn-danger" id="del-person-btn" onclick="deletePerson()" disabled style="margin-left:auto">✕ Remove</button>
+    </div>
+  </div>
+
+  <div class="block">
+    <h3>📦 Sections</h3>
+    <div id="sections-table-area"></div>
+    <div class="actions-bar" style="justify-content: flex-start; margin-top: 12px">
+      <button class="btn btn-blue" onclick="openSectionModal(null)">+ Add Section</button>
+      <button class="btn btn-edit-toggle" id="edit-section-btn" onclick="openSectionModal(selectedSectionId)" disabled>✎ Edit</button>
+      <button class="btn btn-danger" id="del-section-btn" onclick="deleteSection()" disabled style="margin-left:auto">✕ Remove</button>
+    </div>
+  </div>
+</div>
+
+<!-- Person modal -->
+<div id="person-modal" class="modal-overlay" onclick="if(event.target===this) closeModal('person')">
+  <div class="modal">
+    <h3 id="person-modal-title">Add Person</h3>
+    <div class="modal-field">
+      <label for="person-name-input">Person name *</label>
+      <input type="text" id="person-name-input" autocomplete="off" />
+    </div>
+    <div class="modal-field">
+      <label>Active *</label>
+      <div class="modal-radio-row">
+        <label><input type="radio" name="person-active" value="1" checked /> <span>Active</span></label>
+        <label><input type="radio" name="person-active" value="0" /> <span>Inactive</span></label>
+      </div>
+    </div>
+    <div class="form-error" id="person-modal-error"></div>
+    <div class="modal-buttons">
+      <button class="btn btn-ghost" onclick="closeModal('person')">Cancel</button>
+      <button class="btn btn-primary" onclick="savePerson()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Section modal -->
+<div id="section-modal" class="modal-overlay" onclick="if(event.target===this) closeModal('section')">
+  <div class="modal">
+    <h3 id="section-modal-title">Add Section</h3>
+    <div class="modal-field">
+      <label for="section-name-input">Section name *</label>
+      <input type="text" id="section-name-input" autocomplete="off" />
+    </div>
+    <div class="modal-field">
+      <label for="section-parent-input">Parent Section</label>
+      <select id="section-parent-input" onchange="onSectionParentChange()">
+        <option value="">(none — this is a parent section)</option>
+      </select>
+    </div>
+    <div class="modal-field">
+      <label>Type *</label>
+      <div class="modal-radio-row" id="section-type-row">
+        <label><input type="radio" name="section-type" value="Primary" checked /> <span>Primary</span></label>
+        <label><input type="radio" name="section-type" value="Secondary" /> <span>Secondary</span></label>
+      </div>
+      <div class="small-note" id="section-type-note">No parent → must be Primary.</div>
+    </div>
+    <div class="modal-field">
+      <label>Active *</label>
+      <div class="modal-radio-row">
+        <label><input type="radio" name="section-active" value="1" checked /> <span>Active</span></label>
+        <label><input type="radio" name="section-active" value="0" /> <span>Inactive</span></label>
+      </div>
+    </div>
+    <div class="modal-field">
+      <label for="section-cooldown-input">Clean Cooldown (days) *</label>
+      <input type="number" id="section-cooldown-input" min="1" step="1" value="7" />
+    </div>
+    <div class="form-error" id="section-modal-error"></div>
+    <div class="modal-buttons">
+      <button class="btn btn-ghost" onclick="closeModal('section')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSection()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Log edit modal -->
+<div id="log-edit-modal" class="modal-overlay" onclick="if(event.target===this) closeModal('log-edit')">
+  <div class="modal" style="max-width:520px; max-height:80vh; overflow-y:auto">
+    <h3>Edit Log</h3>
+    <div class="modal-field">
+      <label>Person *</label>
+      <div id="log-edit-persons" class="pill-row"></div>
+    </div>
+    <div class="modal-field">
+      <label>Type *</label>
+      <div class="modal-radio-row">
+        <label><input type="radio" name="log-edit-type" value="Cleaning" onchange="updateLogEditSectionsVisibility()" checked /> <span>Cleaning</span></label>
+        <label><input type="radio" name="log-edit-type" value="Absent" onchange="updateLogEditSectionsVisibility()" /> <span>Absent</span></label>
+      </div>
+    </div>
+    <div class="modal-field">
+      <label for="log-edit-date">Date &amp; Time *</label>
+      <input type="datetime-local" id="log-edit-date" />
+    </div>
+    <div class="modal-field" id="log-edit-sections-field">
+      <label>Sections *</label>
+      <div id="log-edit-sections"></div>
+    </div>
+    <div class="form-error" id="log-edit-error"></div>
+    <div class="modal-buttons">
+      <button class="btn btn-ghost" onclick="closeModal('log-edit')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveLogEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+const API = '/api';
+let persons = [];
+let sections = [];
+let recordSelectedPerson = null;            // person name
+let recordSelectedSections = new Set();     // section names (parents + children)
+let selectedPersonId = null;
+let selectedSectionId = null;
+let editingPersonId = null;
+let editingSectionId = null;
+// Log edit state
+let logsData = [];
+let editingLogId = null;
+let logEditSelPerson = null;
+let logEditSelSections = new Set();
+let logEditPersonsList = [];
+let logEditSectionsList = [];
+// Earliest data exists from May 2026 onward — the year picker clamps to this.
+let timetableYear = Math.max(new Date().getFullYear(), 2026);
+// Record-panel week selector state
+let recordWeeks = [];             // [{week, start, end}, ...] — selectable (past/current) weeks
+let recordCurrentWeekNum = null;  // the week number of "this week" (today)
+let recordSelectedWeekNum = null; // currently chosen week — persists across
+                                   // submits within one visit to the panel
+
+// ── Toast / errors ───────────────────────────────────────────────────────────
+function showToast(msg, isError=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (isError ? ' error' : '');
+  clearTimeout(window._tt);
+  window._tt = setTimeout(() => { t.className = ''; }, 3000);
+}
+
+// Per the spec: every page error must be logged to screen.
+function showFormError(elId, msg) {
+  const el = document.getElementById(elId);
+  if (el) el.textContent = msg || '';
+}
+
+// ── API helper ───────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = { method, headers: {} };
+  if (body !== undefined) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  let res;
+  try {
+    res = await fetch(API + path, opts);
+  } catch (e) {
+    throw new Error('Network error: ' + e.message);
+  }
+  let data = null;
+  try { data = await res.json(); } catch (e) { /* maybe no body */ }
+  if (!res.ok) {
+    const msg = (data && (data.detail || data.message)) || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return data;
+}
+
+// ── Escape ───────────────────────────────────────────────────────────────────
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+// ── Navigation ───────────────────────────────────────────────────────────────
+function goHome() {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('show'));
+  document.getElementById('home').style.display = 'flex';
+  document.getElementById('home-intro').style.display = 'block';
+  document.getElementById('quick-info').style.display = 'block';
+  document.getElementById('year-bar').style.display = 'flex';
+  _renderYearPicker(timetableYear);
+  loadHomeData();
+}
+
+function openPanel(name) {
+  document.getElementById('home').style.display = 'none';
+  document.getElementById('home-intro').style.display = 'none';
+  document.getElementById('quick-info').style.display = 'none';
+  document.getElementById('year-bar').style.display = 'none';
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('show'));
+  document.getElementById('panel-' + name).classList.add('show');
+  if (name === 'record')   loadRecordPanel();
+  if (name === 'logs')     loadLogsPanel();
+  if (name === 'settings') loadSettingsPanel();
+}
+
+// ── Home: load time table + cleanness ────────────────────────────────────────
+async function loadHomeData() {
+  loadTimetable();
+  loadSectionCounts();
+  loadCleanness();
+}
+
+// Earliest year with any data — the app didn't exist before this.
+const EARLIEST_YEAR = 2026;
+
+function _renderYearPicker(year) {
+  const today = new Date();
+  const prevDisabled = year <= EARLIEST_YEAR ? 'disabled' : '';
+  document.getElementById('year-picker').innerHTML = `
+    <button onclick="changeYear(-1)" title="Previous year" ${prevDisabled}>‹</button>
+    <span class="year-label">${year}</span>
+    <button onclick="changeYear(1)" title="Next year">›</button>
+    ${year !== today.getFullYear()
+      ? `<button onclick="jumpToCurrentYear()" title="Jump to this year"
+                 style="width:auto; padding:0 8px">today</button>` : ''}
+  `;
+}
+
+function changeYear(delta) {
+  const next = timetableYear + delta;
+  if (next < EARLIEST_YEAR) return;   // floor enforced — no data before this
+  timetableYear = next;
+  _renderYearPicker(timetableYear);
+  loadTimetable();
+  loadSectionCounts();
+}
+
+function jumpToCurrentYear() {
+  timetableYear = Math.max(new Date().getFullYear(), EARLIEST_YEAR);
+  _renderYearPicker(timetableYear);
+  loadTimetable();
+  loadSectionCounts();
+}
+
+// Per-person green%: green / (green + orange + red), matching the spec
+function _personPct(cells) {
+  let g = 0, o = 0, r = 0;
+  for (const c of cells) {
+    if (c.color === 'green') g++;
+    else if (c.color === 'orange') o++;
+    else if (c.color === 'red') r++;
+  }
+  const coloured = g + o + r;
+  return {
+    green: g, orange: o, red: r,
+    pct: coloured ? Math.round((1000 * g) / coloured) / 10 : 0,
+  };
+}
+
+// 'YYYY-MM-DD' → 'dd-mm'
+function _ddmm(iso) {
+  if (!iso || iso.length < 10) return iso || '';
+  return `${iso.slice(8, 10)}-${iso.slice(5, 7)}`;
+}
+
+async function loadTimetable() {
+  const el = document.getElementById('timetable-area');
+  _renderYearPicker(timetableYear);
+  try {
+    const data = await api('GET', `/timetable?year=${timetableYear}`);
+    if (!data.persons.length) {
+      el.innerHTML = '<div class="empty">No active persons yet — add some in Settings.</div>';
+      return;
+    }
+
+    // For 2026 specifically, the table was reset to start fresh at W41
+    // (Tuesday 13-Oct-2026) — earlier weeks are hidden and excluded from the
+    // stats (the underlying logs are kept, so Cleanness/Counts are unaffected).
+    // For future years, show the whole year as usual.
+    let weeks = data.weeks;
+    let firstIdx = 0;
+    if (timetableYear === 2026) {
+      const cutoff = '2026-10-13';
+      const idx = weeks.findIndex(w => w.start <= cutoff && cutoff <= w.end);
+      if (idx > 0) firstIdx = idx;
+    }
+    if (firstIdx > 0) {
+      weeks = weeks.slice(firstIdx);
+    }
+
+    // Build table: column header = week number + (start - end), one row per person.
+    let head = '<tr><th class="person-name">Person</th>';
+    for (const w of weeks) {
+      head += `<th title="Week ${w.week} · ${w.start} → ${w.end}">`
+            + `W${w.week}<br><span style="font-weight:400;color:#6b7280">${_ddmm(w.start)}<br>${_ddmm(w.end)}</span></th>`;
+    }
+    head += '</tr>';
+
+    let body = '';
+    for (const p of data.persons) {
+      body += `<tr><td class="person-name">${escapeHtml(p.name)}</td>`;
+      for (let i = firstIdx; i < data.weeks.length; i++) {
+        const c = p.cells[i];
+        const tip = c.logs.length
+          ? `${c.color} · ${c.logs.length} log(s)`
+          : c.color;
+        body += `<td class="cell ${c.color}" title="${tip}"></td>`;
+      }
+      body += '</tr>';
+    }
+
+    // Per-person stats are computed over the *visible* (post-trim) range so
+    // that the 2026 trim doesn't drag everyone's score down with pre-app
+    // empty weeks. Same for the Total row.
+    const persons = data.persons.map(p => {
+      const vis = p.cells.slice(firstIdx);
+      return { p, s: _personPct(vis) };
+    });
+    persons.sort((a, b) => b.s.pct - a.s.pct);  // descending
+
+    const totals = persons.reduce((acc, { s }) => ({
+      green: acc.green + s.green,
+      orange: acc.orange + s.orange,
+      red: acc.red + s.red,
+    }), { green: 0, orange: 0, red: 0 });
+    const totColoured = totals.green + totals.orange + totals.red;
+    const totalPct = totColoured ? Math.round(1000 * totals.green / totColoured) / 10 : 0;
+
+    const perPersonRows = persons.map(({ p, s }) => `
+      <div class="person-stat-row">
+        <span class="who">${escapeHtml(p.name)}</span>
+        <span class="pct">${s.pct}%</span>
+      </div>
+      <div class="person-stat-detail">
+        ${s.green} Cleaned / ${s.orange} Absent / ${s.red} Failed
+      </div>
+    `).join('');
+
+    const summary = `
+      <div class="legend-row"><span class="legend-swatch" style="background:#11998e"></span> Cleaned</div>
+      <div class="legend-row"><span class="legend-swatch" style="background:#f7971e"></span> Absent</div>
+      <div class="legend-row"><span class="legend-swatch" style="background:#c0392b"></span> Failed</div>
+      <div class="legend-row"><span class="legend-swatch" style="background:#161b27"></span> Blank (future / partial week)</div>
+      <div class="person-stats">
+        <h4>Per person</h4>
+        ${perPersonRows}
+        <div class="person-stat-row" style="margin-top:8px;border-top:1px solid #2a3347;padding-top:8px">
+          <span class="who">Total</span>
+          <span class="pct">${totalPct}%</span>
+        </div>
+        <div class="person-stat-detail">
+          ${totals.green} Cleaned / ${totals.orange} Absent / ${totals.red} Failed
+        </div>
+      </div>
+    `;
+
+    el.innerHTML = `
+      <div class="timetable-wrap">
+        <div class="timetable-scroll">
+          <table class="timetable">
+            <thead>${head}</thead>
+            <tbody>${body}</tbody>
+          </table>
+        </div>
+        <div class="timetable-legend">${summary}</div>
+      </div>
+    `;
+  } catch (e) {
+    el.innerHTML = `<div class="empty" style="color:#ff6b6b">Failed to load time table: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+// ── Section counts table ────────────────────────────────────────────────────
+async function loadSectionCounts() {
+  const el = document.getElementById('section-counts-area');
+  document.getElementById('sc-title').textContent =
+    `📊 Section Counts — ${timetableYear}`;
+  try {
+    const data = await api('GET', `/section_counts?year=${timetableYear}`);
+    if (!data.persons.length) {
+      el.innerHTML = '<div class="empty">No active persons.</div>';
+      return;
+    }
+    if (!data.sections.length) {
+      el.innerHTML = '<div class="empty">No active sections.</div>';
+      return;
+    }
+
+    // Two groups of columns:  Primary children, then Secondary children.
+    // Parents are not columns. Children of the same parent are kept adjacent
+    // by sorting on (parent_name, name) within each group.
+    const primaries  = [];
+    const secondaries = [];
+    data.sections.forEach((s, i) => {
+      if (s.is_parent) return;
+      const entry = { s, i };
+      if (s.type === 'Primary') primaries.push(entry);
+      else if (s.type === 'Secondary') secondaries.push(entry);
+    });
+    const byParent = (a, b) => {
+      const pa = (a.s.parent_name || '').toLowerCase();
+      const pb = (b.s.parent_name || '').toLowerCase();
+      if (pa !== pb) return pa < pb ? -1 : 1;
+      return a.s.name.toLowerCase().localeCompare(b.s.name.toLowerCase());
+    };
+    primaries.sort(byParent);
+    secondaries.sort(byParent);
+    const cols = primaries.concat(secondaries);
+
+    if (!cols.length) {
+      el.innerHTML = '<div class="empty">No child sections yet.</div>';
+      return;
+    }
+
+    // Index where the Primary group ends — that column gets a thicker right
+    // border (the "wall") that separates Primary from Secondary.
+    const wallIdx = primaries.length - 1;  // 0-based; -1 means no wall
+
+    // Header row — section names rotated bottom→top.
+    let head = '<tr><th class="person-name">Person</th>';
+    cols.forEach(({ s }, k) => {
+      const wall = (k === wallIdx) ? ' sc-wall' : '';
+      head += `<th class="${wall.trim()}" title="${escapeHtml(s.name)} · child of ${escapeHtml(s.parent_name)} · ${s.type}">`
+            + `<span class="sc-label">${escapeHtml(s.name)}</span></th>`;
+    });
+    head += '</tr>';
+
+    let body = '';
+    for (const p of data.persons) {
+      body += `<tr><td class="person-name">${escapeHtml(p.name)}</td>`;
+      cols.forEach(({ s, i }, k) => {
+        const n = p.counts[i];
+        const wall = (k === wallIdx) ? ' sc-wall' : '';
+        const valCls = n > 0 ? 'cell-pos' : 'cell-zero';
+        body += `<td class="${valCls}${wall}" title="${escapeHtml(p.name)} · ${escapeHtml(s.name)} · ${n}">${n || ''}</td>`;
+      });
+      body += '</tr>';
+    }
+
+    // Side panels: Primary + Secondary cleaning totals.
+    // Each row shows total count + count per available week (absent weeks excluded).
+    const totalAvail = data.total_available_weeks || 0;
+    const renderTotals = (key) => {
+      const rows = data.persons
+        .map(p => ({
+          name: p.name,
+          total: p[key],
+          avail: Math.max(0, totalAvail - (p.absent_weeks || 0)),
+        }))
+        .sort((a, b) => b.total - a.total);
+      if (!rows.length) return '<div class="empty" style="padding:0">—</div>';
+      const header = `
+        <div class="sec-row" style="padding-bottom:6px;margin-bottom:2px;border-bottom:1px solid #2a3347">
+          <span class="sec-name" style="color:#6b7280;font-size:0.72rem">Person</span>
+          <span style="display:flex;gap:10px">
+            <span style="color:#6b7280;font-size:0.72rem;min-width:28px;text-align:right">Total</span>
+            <span style="color:#6b7280;font-size:0.72rem;min-width:28px;text-align:right">/wk</span>
+          </span>
+        </div>`;
+      const dataRows = rows.map(r => {
+        const perWk = r.avail > 0 ? (r.total / r.avail).toFixed(1) : '—';
+        return `
+          <div class="sec-row">
+            <span class="sec-name">${escapeHtml(r.name)}</span>
+            <span style="display:flex;gap:10px">
+              <span class="sec-count">${r.total}</span>
+              <span class="sec-count" style="color:#8b9cb8;min-width:28px;text-align:right">${perWk}</span>
+            </span>
+          </div>`;
+      }).join('');
+      return header + dataRows;
+    };
+
+    const perWkNote = `<div class="small-note" style="margin-top:8px">/wk = total ÷ (visible weeks − absent weeks)</div>`;
+
+    el.innerHTML = `
+      <div class="sc-wrap">
+        <div class="sc-scroll">
+          <table class="sc-table">
+            <thead>${head}</thead>
+            <tbody>${body}</tbody>
+          </table>
+        </div>
+        <div class="sc-legend">
+          <h4>Primary cleanings</h4>
+          ${renderTotals('primary_total')}
+          ${perWkNote}
+          <hr>
+          <h4>Secondary cleanings</h4>
+          ${renderTotals('secondary_total')}
+          ${perWkNote}
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    el.innerHTML = `<div class="empty" style="color:#ff6b6b">Failed to load section counts: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+// Format an ISO date string ('2026-05-25T22:01:28' or with trailing Z) as
+// 'dd/MM/yyyy HH:mm:ss' in local time, no AM/PM.
+function fmtDateTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso.length === 10 ? iso + 'T00:00:00' : iso);
+  if (isNaN(d.getTime())) return iso;
+  const pad = n => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} `
+       + `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function _renderCleanCard(s) {
+  const isParent = !s.parent_name;
+  const overdueCls = s.overdue ? ' overdue' : '';
+  const typeCls = isParent ? ' parent'
+                : s.type === 'Primary' ? ' primary' : ' secondary';
+  const alert = s.overdue ? '<span class="alert">⚠</span>' : '';
+  const last = s.last_cleaned ? fmtDateTime(s.last_cleaned) : 'never';
+  const days = s.days_past == null ? '—' : `${s.days_past}d`;
+  // Last Cleaned by — only rendered when we actually have a recorded log.
+  const byLine = s.last_cleaned_by
+    ? `<div class="clean-meta">Last Cleaned by: <strong>${escapeHtml(s.last_cleaned_by)}</strong></div>`
+    : '';
+  return `
+    <div class="clean-card${typeCls}${overdueCls}">
+      <div class="clean-name">${alert}${escapeHtml(s.name)}</div>
+      <div class="clean-meta">Once every ${s.clean_cooldown}d · ${escapeHtml(s.type)}</div>
+      ${byLine}
+      <div class="clean-meta">Last: ${escapeHtml(last)}</div>
+      <div class="clean-days">${days} since</div>
+    </div>
+  `;
+}
+
+async function loadCleanness() {
+  const el = document.getElementById('cleanness-area');
+  try {
+    const data = await api('GET', '/cleanness');
+    if (!data.length) {
+      el.innerHTML = '<div class="empty">No active sections yet — add some in Settings.</div>';
+      return;
+    }
+
+    // Group: each parent gets its own column with its primary children first,
+    // then secondary children below.  Orphan children (parent missing from
+    // the active set) are bundled into an extra "Other" column.
+    const parents = data.filter(s => !s.parent_name);
+    const orphans = [];
+
+    let html = '<div class="cleanness-columns">';
+    for (const parent of parents) {
+      const kids = data.filter(s => s.parent_name === parent.name);
+      const prim = kids.filter(k => k.type === 'Primary');
+      const sec  = kids.filter(k => k.type === 'Secondary');
+      html += '<div class="cleanness-col">';
+      html += _renderCleanCard(parent);
+      for (const k of prim) html += _renderCleanCard(k);
+      for (const k of sec)  html += _renderCleanCard(k);
+      html += '</div>';
+    }
+
+    // Find any children whose parent isn't in the active list (e.g. parent
+    // was deactivated while the child stayed active).
+    const parentNames = new Set(parents.map(p => p.name));
+    for (const s of data) {
+      if (s.parent_name && !parentNames.has(s.parent_name)) orphans.push(s);
+    }
+    if (orphans.length) {
+      html += '<div class="cleanness-col">';
+      html += `<div class="clean-card parent" style="opacity:0.7">
+                 <div class="clean-name parent">(orphans)</div>
+                 <div class="clean-meta">parent section inactive</div>
+               </div>`;
+      for (const o of orphans) html += _renderCleanCard(o);
+      html += '</div>';
+    }
+
+    html += '</div>';
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = `<div class="empty" style="color:#ff6b6b">Failed to load cleanness: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+// ── Enter Record panel ───────────────────────────────────────────────────────
+async function loadRecordPanel() {
+  showFormError('record-error', '');
+  recordSelectedPerson = null;
+  recordSelectedSections = new Set();
+  try {
+    const [ps, ss, tt] = await Promise.all([
+      api('GET', '/persons'),
+      api('GET', '/sections'),
+      api('GET', `/timetable?year=${new Date().getFullYear()}`),
+    ]);
+    persons = ps;
+    sections = ss;
+
+    // Weeks selectable for recording — only ones that have actually started
+    // (`tt.today` is the server's clock, so no browser-timezone drift), and
+    // trimmed to the app's real history the same way the Time Table is.
+    let weeks = tt.weeks.filter(w => w.start <= tt.today);
+    if (tt.year === 2026) {
+      const cutoff = '2026-08-04';
+      weeks = weeks.filter(w => w.end >= cutoff);
+    }
+    recordWeeks = weeks;
+    recordCurrentWeekNum = weeks.length ? weeks[weeks.length - 1].week : null;
+    // Fresh visit to the panel always starts on "this week" — the persisted
+    // selection only survives between submits within the same visit.
+    recordSelectedWeekNum = recordCurrentWeekNum;
+
+    renderRecordWeekSelect();
+    renderRecordPersons();
+    renderRecordSections();
+  } catch (e) {
+    showFormError('record-error', e.message);
+  }
+}
+
+function renderRecordWeekSelect() {
+  const el = document.getElementById('record-week-select');
+  if (!recordWeeks.length) {
+    el.innerHTML = '<option value="">No weeks available</option>';
+    return;
+  }
+  el.innerHTML = recordWeeks.map(w => {
+    const label = w.week === recordCurrentWeekNum
+      ? `This week — Week ${w.week} · ${_ddmm(w.start)} – ${_ddmm(w.end)}`
+      : `Week ${w.week} · ${_ddmm(w.start)} – ${_ddmm(w.end)}`;
+    return `<option value="${w.week}" ${w.week === recordSelectedWeekNum ? 'selected' : ''}>${label}</option>`;
+  }).join('');
+  updateWeekPastNote();
+}
+
+function onRecordWeekChange() {
+  const val = document.getElementById('record-week-select').value;
+  recordSelectedWeekNum = val ? parseInt(val, 10) : null;
+  updateWeekPastNote();
+}
+
+function updateWeekPastNote() {
+  document.getElementById('week-past-note').hidden =
+    (recordSelectedWeekNum === recordCurrentWeekNum);
+}
+
+// The date to send with a log, or undefined for "this week" (server clock,
+// same as always). Only a past-week selection needs an explicit override.
+function recordDateOverride() {
+  if (recordSelectedWeekNum === recordCurrentWeekNum) return undefined;
+  const week = recordWeeks.find(w => w.week === recordSelectedWeekNum);
+  return week ? `${week.start}T12:00:00` : undefined;
+}
+
+function renderRecordPersons() {
+  const el = document.getElementById('record-persons');
+  const active = persons.filter(p => p.active);
+  if (!active.length) {
+    el.innerHTML = '<div class="empty">No active persons.</div>';
+    return;
+  }
+  el.innerHTML = active.map(p => `
+    <button class="pill ${recordSelectedPerson === p.name ? 'selected' : ''}"
+            onclick="selectRecordPerson('${escapeJs(p.name)}')">${escapeHtml(p.name)}</button>
+  `).join('');
+}
+
+function selectRecordPerson(name) {
+  recordSelectedPerson = (recordSelectedPerson === name) ? null : name;
+  renderRecordPersons();
+}
+
+function escapeJs(s) {
+  return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+function renderRecordSections() {
+  const el = document.getElementById('record-sections');
+  const active = sections.filter(s => s.active);
+  const parents = active.filter(s => !s.parent_name);
+  if (!parents.length) {
+    el.innerHTML = '<div class="empty">No active sections.</div>';
+    return;
+  }
+  // Top-of-block legend explaining the type colours.
+  let html = `
+    <div class="type-legend">
+      <span><span class="swatch primary"></span>Primary</span>
+      <span><span class="swatch secondary"></span>Secondary</span>
+    </div>
+  `;
+  for (const parent of parents) {
+    const children = active.filter(s => s.parent_name === parent.name);
+    children.sort((a, b) => {
+      if (a.type !== b.type) return a.type === 'Primary' ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    const greenCls = isParentGreen(parent, children) ? 'parent-green' : 'parent-blank';
+
+    const childPills = children.map(c => {
+      const checked = recordSelectedSections.has(c.name);
+      const typeCls = c.type === 'Secondary' ? 'secondary' : 'primary';
+      const cls = `child-pill ${typeCls} ${checked ? 'checked' : ''}`;
+      return `
+        <label class="${cls}">
+          <input type="checkbox" ${checked ? 'checked' : ''}
+                 onchange="toggleRecordSection('${escapeJs(c.name)}', this.checked)" />
+          ${escapeHtml(c.name)}
+        </label>
+      `;
+    }).join('');
+
+    html += `
+      <div class="section-row">
+        <span class="pill parent-pill ${greenCls}"
+              onclick="toggleParentTick('${escapeJs(parent.name)}')">${escapeHtml(parent.name)}</span>
+        <div class="child-group">${childPills || '<span class="small-note">No active children</span>'}</div>
+      </div>
+    `;
+  }
+  el.innerHTML = html;
+}
+
+// Parent is green if all primary children are selected.
+function isParentGreen(parent, children) {
+  const prims = children.filter(c => c.type === 'Primary');
+  if (!prims.length) {
+    // No primaries — green only when the parent itself is selected.
+    return recordSelectedSections.has(parent.name);
+  }
+  return prims.every(c => recordSelectedSections.has(c.name));
+}
+
+function toggleRecordSection(name, checked) {
+  if (checked) recordSelectedSections.add(name);
+  else recordSelectedSections.delete(name);
+  renderRecordSections();
+}
+
+function toggleParentTick(parentName) {
+  const parent = sections.find(s => s.name === parentName);
+  if (!parent) return;
+  const children = sections.filter(s => s.parent_name === parentName && s.active);
+  const prims = children.filter(c => c.type === 'Primary');
+  const allSelected = prims.length
+    ? prims.every(c => recordSelectedSections.has(c.name))
+    : recordSelectedSections.has(parentName);
+
+  if (allSelected) {
+    // Deselect: remove the parent + every primary child
+    recordSelectedSections.delete(parentName);
+    prims.forEach(c => recordSelectedSections.delete(c.name));
+  } else {
+    // Select: add parent + every primary child
+    recordSelectedSections.add(parentName);
+    prims.forEach(c => recordSelectedSections.add(c.name));
+  }
+  renderRecordSections();
+}
+
+async function submitRecord(type) {
+  showFormError('record-error', '');
+  if (!recordSelectedPerson) {
+    showFormError('record-error', 'Please select a person.');
+    return;
+  }
+  if (type === 'Cleaning' && recordSelectedSections.size === 0) {
+    showFormError('record-error', 'Please tick at least one section.');
+    return;
+  }
+
+  // Build sections list. Per spec: include parent name only when its pill is green
+  // (i.e. all primary children selected). Currently recordSelectedSections already
+  // contains the parent name iff toggleParentTick added it — we just send the set.
+  // But also: a parent could be "green by virtue of children all ticked" without
+  // its own pill being in the set. Re-derive that here.
+  const out = new Set(recordSelectedSections);
+  const activeSections = sections.filter(s => s.active);
+  const parents = activeSections.filter(s => !s.parent_name);
+  for (const parent of parents) {
+    const children = activeSections.filter(s => s.parent_name === parent.name);
+    if (isParentGreen(parent, children)) out.add(parent.name);
+  }
+
+  try {
+    await api('POST', '/logs', {
+      person_name: recordSelectedPerson,
+      type,
+      sections: type === 'Absent' ? [] : Array.from(out),
+      date: recordDateOverride(),
+    });
+    const weekNote = recordSelectedWeekNum === recordCurrentWeekNum
+      ? '' : ` (Week ${recordSelectedWeekNum})`;
+    showToast(`${type} logged for ${recordSelectedPerson}${weekNote}`);
+    recordSelectedPerson = null;
+    recordSelectedSections = new Set();
+    renderRecordPersons();
+    renderRecordSections();
+    // The week selector deliberately stays as-is — handy for logging several
+    // people into the same past week without re-picking it each time.
+  } catch (e) {
+    showFormError('record-error', e.message);
+  }
+}
+
+// ── Logs panel ───────────────────────────────────────────────────────────────
+async function loadLogsPanel() {
+  const el = document.getElementById('logs-area');
+  el.innerHTML = '<div class="empty">Loading…</div>';
+  try {
+    const data = await api('GET', '/logs');
+    logsData = data;
+    if (!data.length) {
+      el.innerHTML = '<div class="empty">No logs yet.</div>';
+      return;
+    }
+    let rows = data.map(l => `
+      <tr>
+        <td>${escapeHtml(fmtDateTime(l.date))}</td>
+        <td>${escapeHtml(l.person_name)}</td>
+        <td>${escapeHtml(l.type)}</td>
+        <td>${escapeHtml((l.sections || []).join(', '))}</td>
+        <td class="row-actions">
+          <button class="btn btn-blue" onclick="openLogEditModal(${l.id})">Edit</button>
+          <button class="btn btn-danger" onclick="deleteLog(${l.id})">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+    el.innerHTML = `
+      <table class="data-table">
+        <thead><tr>
+          <th>Date</th><th>Person</th><th>Type</th><th>Sections</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+  } catch (e) {
+    el.innerHTML = `<div class="empty" style="color:#ff6b6b">${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function deleteLog(id) {
+  if (!confirm('Delete this log?')) return;
+  try {
+    await api('DELETE', '/logs/' + id);
+    showToast('Log deleted');
+    loadLogsPanel();
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+async function openLogEditModal(id) {
+  const log = logsData.find(l => l.id === id);
+  if (!log) return;
+  editingLogId = id;
+  logEditSelPerson = log.person_name;
+  logEditSelSections = new Set(log.sections || []);
+  showFormError('log-edit-error', '');
+
+  try {
+    const [ps, ss] = await Promise.all([api('GET', '/persons'), api('GET', '/sections')]);
+    logEditPersonsList = ps;
+    logEditSectionsList = ss;
+  } catch (e) {
+    showToast(e.message, true);
+    return;
+  }
+
+  // Pre-fill type radio.
+  const typeRadio = document.querySelector(`input[name=log-edit-type][value="${log.type}"]`);
+  if (typeRadio) typeRadio.checked = true;
+
+  // Pre-fill date: 'YYYY-MM-DDTHH:mm:ss' → 'YYYY-MM-DDTHH:mm' for datetime-local.
+  document.getElementById('log-edit-date').value = (log.date || '').slice(0, 16);
+
+  renderLogEditPersons();
+  renderLogEditSections();
+  updateLogEditSectionsVisibility();
+  document.getElementById('log-edit-modal').classList.add('show');
+}
+
+function renderLogEditPersons() {
+  const el = document.getElementById('log-edit-persons');
+  const active = logEditPersonsList.filter(p => p.active);
+  el.innerHTML = active.map(p => `
+    <button class="pill ${logEditSelPerson === p.name ? 'selected' : ''}"
+            onclick="logEditSelPerson='${escapeJs(p.name)}'; renderLogEditPersons()"
+            >${escapeHtml(p.name)}</button>
+  `).join('');
+}
+
+function renderLogEditSections() {
+  const el = document.getElementById('log-edit-sections');
+  const active = logEditSectionsList.filter(s => s.active);
+  const parents = active.filter(s => !s.parent_name);
+  if (!parents.length) {
+    el.innerHTML = '<div class="small-note">No active sections.</div>';
+    return;
+  }
+  let html = '';
+  for (const parent of parents) {
+    const children = active.filter(s => s.parent_name === parent.name);
+    children.sort((a, b) => {
+      if (a.type !== b.type) return a.type === 'Primary' ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+    if (!children.length) continue;
+    html += `<div style="margin-bottom:10px">`;
+    html += `<div style="font-size:0.82rem;color:#8b9cb8;font-weight:600;margin-bottom:4px">${escapeHtml(parent.name)}</div>`;
+    html += `<div class="pill-row">`;
+    for (const c of children) {
+      const checked = logEditSelSections.has(c.name);
+      const typeCls = c.type === 'Primary' ? 'primary' : 'secondary';
+      html += `
+        <label class="child-pill ${typeCls} ${checked ? 'checked' : ''}">
+          <input type="checkbox" ${checked ? 'checked' : ''}
+                 onchange="logEditToggleSection('${escapeJs(c.name)}', this.checked)" />
+          ${escapeHtml(c.name)}
+        </label>`;
+    }
+    html += `</div></div>`;
+  }
+  el.innerHTML = html || '<div class="small-note">No children sections.</div>';
+}
+
+function logEditToggleSection(name, checked) {
+  if (checked) logEditSelSections.add(name);
+  else logEditSelSections.delete(name);
+  renderLogEditSections();
+}
+
+function updateLogEditSectionsVisibility() {
+  const type = document.querySelector('input[name=log-edit-type]:checked')?.value;
+  const field = document.getElementById('log-edit-sections-field');
+  if (field) field.style.display = (type === 'Cleaning') ? '' : 'none';
+}
+
+async function saveLogEdit() {
+  showFormError('log-edit-error', '');
+  if (!logEditSelPerson) {
+    showFormError('log-edit-error', 'Please select a person.');
+    return;
+  }
+  const type = document.querySelector('input[name=log-edit-type]:checked').value;
+  const dateVal = document.getElementById('log-edit-date').value;  // 'YYYY-MM-DDTHH:mm'
+  if (!dateVal) {
+    showFormError('log-edit-error', 'Date is required.');
+    return;
+  }
+  if (type === 'Cleaning' && logEditSelSections.size === 0) {
+    showFormError('log-edit-error', 'Please select at least one section.');
+    return;
+  }
+  try {
+    await api('PUT', '/logs/' + editingLogId, {
+      person_name: logEditSelPerson,
+      type,
+      sections: type === 'Absent' ? [] : Array.from(logEditSelSections),
+      date: dateVal,  // backend accepts 'YYYY-MM-DDTHH:mm' and adds ':00'
+    });
+    showToast('Log updated');
+    closeModal('log-edit');
+    loadLogsPanel();
+  } catch (e) {
+    showFormError('log-edit-error', e.message);
+  }
+}
+
+// ── Settings panel ───────────────────────────────────────────────────────────
+async function loadSettingsPanel() {
+  selectedPersonId = null;
+  selectedSectionId = null;
+  refreshSettingsButtons();
+  try {
+    const [ps, ss] = await Promise.all([
+      api('GET', '/persons'),
+      api('GET', '/sections'),
+    ]);
+    persons = ps;
+    sections = ss;
+    renderPersonsTable();
+    renderSectionsTable();
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+function refreshSettingsButtons() {
+  document.getElementById('edit-person-btn').disabled  = !selectedPersonId;
+  document.getElementById('del-person-btn').disabled   = !selectedPersonId;
+  document.getElementById('edit-section-btn').disabled = !selectedSectionId;
+  document.getElementById('del-section-btn').disabled  = !selectedSectionId;
+}
+
+function renderPersonsTable() {
+  const el = document.getElementById('persons-table-area');
+  if (!persons.length) {
+    el.innerHTML = '<div class="empty">No persons yet.</div>';
+    return;
+  }
+  el.innerHTML = `
+    <table class="data-table">
+      <thead><tr><th>Name</th><th>Active</th></tr></thead>
+      <tbody>${persons.map(p => `
+        <tr class="clickable ${selectedPersonId === p.id ? 'selected' : ''}"
+            onclick="selectPerson(${p.id})">
+          <td>${escapeHtml(p.name)}</td>
+          <td>${p.active ? 'Yes' : 'No'}</td>
+        </tr>
+      `).join('')}</tbody>
+    </table>
+  `;
+}
+
+function selectPerson(id) {
+  selectedPersonId = (selectedPersonId === id) ? null : id;
+  renderPersonsTable();
+  refreshSettingsButtons();
+}
+
+function renderSectionsTable() {
+  const el = document.getElementById('sections-table-area');
+  if (!sections.length) {
+    el.innerHTML = '<div class="empty">No sections yet.</div>';
+    return;
+  }
+  el.innerHTML = `
+    <table class="data-table">
+      <thead><tr>
+        <th>Name</th><th>Parent</th><th>Type</th><th>Active</th><th>Cooldown</th>
+      </tr></thead>
+      <tbody>${sections.map(s => `
+        <tr class="clickable ${selectedSectionId === s.id ? 'selected' : ''}"
+            onclick="selectSection(${s.id})">
+          <td>${escapeHtml(s.name)}</td>
+          <td>${escapeHtml(s.parent_name || '—')}</td>
+          <td>${escapeHtml(s.type)}</td>
+          <td>${s.active ? 'Yes' : 'No'}</td>
+          <td>${s.clean_cooldown}d</td>
+        </tr>
+      `).join('')}</tbody>
+    </table>
+  `;
+}
+
+function selectSection(id) {
+  selectedSectionId = (selectedSectionId === id) ? null : id;
+  renderSectionsTable();
+  refreshSettingsButtons();
+}
+
+// ── Person modal ─────────────────────────────────────────────────────────────
+function openPersonModal(id) {
+  editingPersonId = id;
+  showFormError('person-modal-error', '');
+  document.getElementById('person-modal-title').textContent =
+    id ? 'Edit Person' : 'Add Person';
+  const nameInput = document.getElementById('person-name-input');
+  if (id) {
+    const p = persons.find(x => x.id === id);
+    if (!p) return;
+    nameInput.value = p.name;
+    document.querySelector(`input[name=person-active][value="${p.active ? 1 : 0}"]`).checked = true;
+  } else {
+    nameInput.value = '';
+    document.querySelector('input[name=person-active][value="1"]').checked = true;
+  }
+  document.getElementById('person-modal').classList.add('show');
+  setTimeout(() => nameInput.focus(), 50);
+}
+
+function closeModal(name) {
+  document.getElementById(name + '-modal').classList.remove('show');
+}
+
+async function savePerson() {
+  showFormError('person-modal-error', '');
+  const name = document.getElementById('person-name-input').value.trim();
+  const active = document.querySelector('input[name=person-active]:checked').value === '1';
+  if (!name) {
+    showFormError('person-modal-error', 'Name is required.');
+    return;
+  }
+  try {
+    if (editingPersonId) {
+      await api('PUT', '/persons/' + editingPersonId, { name, active });
+      showToast('Person updated');
+    } else {
+      await api('POST', '/persons', { name, active });
+      showToast('Person added');
+    }
+    closeModal('person');
+    loadSettingsPanel();
+  } catch (e) {
+    showFormError('person-modal-error', e.message);
+  }
+}
+
+async function deletePerson() {
+  if (!selectedPersonId) return;
+  if (!confirm('Delete this person? Existing logs are kept.')) return;
+  try {
+    await api('DELETE', '/persons/' + selectedPersonId);
+    showToast('Person deleted');
+    selectedPersonId = null;
+    loadSettingsPanel();
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+// ── Section modal ────────────────────────────────────────────────────────────
+function openSectionModal(id) {
+  editingSectionId = id;
+  showFormError('section-modal-error', '');
+  document.getElementById('section-modal-title').textContent =
+    id ? 'Edit Section' : 'Add Section';
+
+  // Populate parent dropdown — only top-level (no parent) and excluding the
+  // section being edited.
+  const parentSel = document.getElementById('section-parent-input');
+  parentSel.innerHTML = '<option value="">(none — this is a parent section)</option>'
+    + sections
+        .filter(s => !s.parent_name && s.id !== id)
+        .map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`)
+        .join('');
+
+  const nameI = document.getElementById('section-name-input');
+  const cdI = document.getElementById('section-cooldown-input');
+  if (id) {
+    const s = sections.find(x => x.id === id);
+    if (!s) return;
+    nameI.value = s.name;
+    parentSel.value = s.parent_name || '';
+    document.querySelector(`input[name=section-type][value="${s.type}"]`).checked = true;
+    document.querySelector(`input[name=section-active][value="${s.active ? 1 : 0}"]`).checked = true;
+    cdI.value = s.clean_cooldown;
+  } else {
+    nameI.value = '';
+    // If a Parent Section is currently selected in the table, pre-fill the
+    // Parent Section dropdown with its name — saves a step when adding a
+    // batch of children under the same parent.
+    let defaultParent = '';
+    if (selectedSectionId) {
+      const sel = sections.find(x => x.id === selectedSectionId);
+      if (sel && !sel.parent_name) defaultParent = sel.name;
+    }
+    parentSel.value = defaultParent;
+    document.querySelector('input[name=section-type][value="Primary"]').checked = true;
+    document.querySelector('input[name=section-active][value="1"]').checked = true;
+    cdI.value = 7;
+  }
+  onSectionParentChange();   // sync Type lock state
+  document.getElementById('section-modal').classList.add('show');
+  setTimeout(() => nameI.focus(), 50);
+}
+
+// When the parent dropdown changes, lock/unlock the Type radio buttons:
+//   • No parent  → Type forced to Primary, radios disabled (but the Primary
+//                  dot stays visibly selected under the lock).
+//   • Has parent → Both Primary and Secondary are allowed for children.
+//                  The radios unlock so the user can choose freely.
+function onSectionParentChange() {
+  const parent = document.getElementById('section-parent-input').value;
+  const radios = document.querySelectorAll('input[name=section-type]');
+  const note = document.getElementById('section-type-note');
+  if (!parent) {
+    radios.forEach(r => { r.disabled = true; r.checked = r.value === 'Primary'; });
+    note.textContent = 'No parent → must be Primary.';
+  } else {
+    // Unlock the radios. Don't change which one is checked — preserve the
+    // user's previous pick (or whatever was loaded for an Edit).
+    radios.forEach(r => { r.disabled = false; });
+    note.textContent = 'Child section — pick Primary or Secondary.';
+  }
+}
+
+async function saveSection() {
+  showFormError('section-modal-error', '');
+  const name = document.getElementById('section-name-input').value.trim();
+  const parent_name = document.getElementById('section-parent-input').value || null;
+  const type = document.querySelector('input[name=section-type]:checked').value;
+  const active = document.querySelector('input[name=section-active]:checked').value === '1';
+  const clean_cooldown = parseInt(document.getElementById('section-cooldown-input').value, 10);
+
+  if (!name) {
+    showFormError('section-modal-error', 'Name is required.');
+    return;
+  }
+  if (!Number.isInteger(clean_cooldown) || clean_cooldown < 1) {
+    showFormError('section-modal-error', 'Clean Cooldown must be a positive integer.');
+    return;
+  }
+  try {
+    const body = { name, parent_name, type, active, clean_cooldown };
+    if (editingSectionId) {
+      await api('PUT', '/sections/' + editingSectionId, body);
+      showToast('Section updated');
+    } else {
+      await api('POST', '/sections', body);
+      showToast('Section added');
+    }
+    closeModal('section');
+    loadSettingsPanel();
+  } catch (e) {
+    showFormError('section-modal-error', e.message);
+  }
+}
+
+async function deleteSection() {
+  if (!selectedSectionId) return;
+  if (!confirm('Delete this section?')) return;
+  try {
+    await api('DELETE', '/sections/' + selectedSectionId);
+    showToast('Section deleted');
+    selectedSectionId = null;
+    loadSettingsPanel();
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+goHome();
+
+</script>
+</body>
+</html>
